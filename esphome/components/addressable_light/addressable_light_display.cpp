@@ -52,6 +52,32 @@ void AddressableLightDisplay::display() {
   }
 }
 
+Color AddressableLightDisplay::get_pixel_color(int x, int y) {
+  switch (this->rotation_) {
+    case esphome::display::DISPLAY_ROTATION_0_DEGREES:
+      break;
+    case esphome::display::DISPLAY_ROTATION_90_DEGREES:
+      std::swap(x, y);
+      x = this->get_width_internal() - x - 1;
+      break;
+    case esphome::display::DISPLAY_ROTATION_180_DEGREES:
+      x = this->get_width_internal() - x - 1;
+      y = this->get_height_internal() - y - 1;
+      break;
+    case esphome::display::DISPLAY_ROTATION_270_DEGREES:
+      std::swap(x, y);
+      y = this->get_height_internal() - y - 1;
+      break;
+  }
+
+  if (x >= this->get_width_internal() || x < 0 || y >= this->get_height_internal() || y < 0)
+    return Color::BLACK;
+
+  if (this->pixel_mapper_f_.has_value()) 
+    return this->addressable_light_buffer_[(*this->pixel_mapper_f_)(x, y)];
+  return this->addressable_light_buffer_[y * this->get_width_internal() + x];
+}
+
 void HOT AddressableLightDisplay::draw_absolute_pixel_internal(int x, int y, Color color) {
   if (x >= this->get_width_internal() || x < 0 || y >= this->get_height_internal() || y < 0)
     return;
