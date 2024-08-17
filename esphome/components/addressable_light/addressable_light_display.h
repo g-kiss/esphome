@@ -4,7 +4,6 @@
 #include "esphome/core/color.h"
 #include "esphome/components/display/display_buffer.h"
 #include "esphome/components/light/addressable_light.h"
-
 #include <vector>
 
 namespace esphome {
@@ -41,6 +40,8 @@ class AddressableLightDisplay : public display::DisplayBuffer {
   void set_pixel_mapper(std::function<int(int, int)> &&pixel_mapper_f) { this->pixel_mapper_f_ = pixel_mapper_f; }
   void setup() override;
   void display();
+
+  Color get_pixel_color(int x, int y);
 
   display::DisplayType get_display_type() override { return display::DisplayType::DISPLAY_TYPE_COLOR; }
 
