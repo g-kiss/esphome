@@ -26,7 +26,7 @@ inline static int16_t sin16_c(uint16_t theta) {
     return -y;
   return y;
 }
-inline static uint8_t half_sin8(uint8_t v) { return sin16_c(uint16_t(v) * 128u) >> 8; }
+inline static uint8_t half_sin8(uint8_t v) { return sin16_c(uint16_t(v) * 128u) >> 7; }
 
 class AddressableLightEffect : public LightEffect {
  public:
