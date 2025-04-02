@@ -75,6 +75,12 @@ class SpiLedStrip : public light::AddressableLight,
       this->effect_data_[i] = 0;
   }
 
+  void set_brightness32(uint8_t brightness) {
+    brightness = 0b11100000 | (brightness & 0b00011111);
+    for (int i = 0; i < this->num_leds_; i++)
+      this->buf_[4 + (i<<2)] = brightness;
+  }
+
  protected:
   light::ESPColorView get_view_internal(int32_t index) const override {
     size_t pos = index * 4 + 5;
