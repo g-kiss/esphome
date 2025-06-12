@@ -43,11 +43,13 @@ const uint8_t DAIKIN_STATE_FRAME_SIZE = 19;
 class DaikinClimate : public climate_ir::ClimateIR {
  public:
   DaikinClimate()
-      : climate_ir::ClimateIR(DAIKIN_TEMP_MIN, DAIKIN_TEMP_MAX, 1.0f, true, true,
-                              {climate::CLIMATE_FAN_QUIET, climate::CLIMATE_FAN_AUTO, climate::CLIMATE_FAN_LOW,
-                               climate::CLIMATE_FAN_MEDIUM, climate::CLIMATE_FAN_HIGH},
-                              {climate::CLIMATE_SWING_OFF, climate::CLIMATE_SWING_VERTICAL,
-                               climate::CLIMATE_SWING_HORIZONTAL, climate::CLIMATE_SWING_BOTH}) {}
+      : climate_ir::ClimateIR(
+            DAIKIN_TEMP_MIN, DAIKIN_TEMP_MAX, 1.0f, true, true,
+            {climate::CLIMATE_FAN_QUIET, climate::CLIMATE_FAN_AUTO, climate::CLIMATE_FAN_LOW,
+             climate::CLIMATE_FAN_MEDIUM, climate::CLIMATE_FAN_HIGH},
+            {climate::CLIMATE_SWING_OFF, climate::CLIMATE_SWING_VERTICAL, climate::CLIMATE_SWING_HORIZONTAL,
+             climate::CLIMATE_SWING_BOTH},
+            {climate::CLIMATE_PRESET_NONE, climate::CLIMATE_PRESET_ECO, climate::CLIMATE_PRESET_BOOST}) {}
 
  protected:
   // Transmit via IR the state of this climate controller.

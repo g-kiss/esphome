@@ -1,6 +1,8 @@
 #include "daikin.h"
 #include "esphome/components/remote_base/remote_base.h"
 
+using namespace esphome::climate;
+
 namespace esphome {
 namespace daikin {
 
@@ -11,11 +13,19 @@ void DaikinClimate::transmit_state() {
                               0x42, 0x49, 0x05, 0xA2, 0x11, 0xDA, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00,
                               0x00, 0x00, 0x00, 0x06, 0x60, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00};
 
+  // Az indexek 16-tal nagyobbak a kiolvasaskorinal.
   remote_state[21] = this->operation_mode_();
   remote_state[22] = this->temperature_();
   uint16_t fan_speed = this->fan_speed_();
   remote_state[24] = fan_speed >> 8;
   remote_state[25] = fan_speed & 0xff;
+
+  if (this->preset == CLIMATE_PRESET_BOOST)
+    remote_state[16 + 13] = remote_state[16 + 13] | 1;
+  else if (this->preset == CLIMATE_PRESET_ECO) {
+    ESP_LOGW(TAG, "set eco mode");
+    remote_state[16 + 16] = remote_state[16 + 16] | 4;
+  }
 
   // Calculate checksum
   for (int i = 16; i < 34; i++) {
@@ -137,18 +147,26 @@ uint8_t DaikinClimate::temperature_() const {
     case climate::CLIMATE_MODE_DRY:
       return 0xc0;
     default:
-      uint8_t temperature = (uint8_t) roundf(clamp<float>(this->target_temperature, DAIKIN_TEMP_MIN, DAIKIN_TEMP_MAX));
-      return temperature << 1;
+      // uint8_t temperature = (uint8_t) roundf(clamp<float>(this->target_temperature, DAIKIN_TEMP_MIN,
+      // DAIKIN_TEMP_MAX)); return temperature << 1;
+      return (uint8_t) roundf(clamp<float>(this->target_temperature, DAIKIN_TEMP_MIN, DAIKIN_TEMP_MAX) * 2);
   }
 }
 
 bool DaikinClimate::parse_state_frame_(const uint8_t frame[]) {
+  ESP_LOGD("***********************************************************", "parse_state_frame: ");
+  for (size_t i = 0; i < DAIKIN_STATE_FRAME_SIZE; i++) {
+    ESP_LOGD("***************************************************************", "  %02X", frame[i]);
+  }
+
   uint8_t checksum = 0;
   for (int i = 0; i < (DAIKIN_STATE_FRAME_SIZE - 1); i++) {
     checksum += frame[i];
   }
-  if (frame[DAIKIN_STATE_FRAME_SIZE - 1] != checksum)
+  if (frame[DAIKIN_STATE_FRAME_SIZE - 1] != checksum) {
+    ESP_LOGW(TAG, "Frame checksum error!");
     return false;
+  }
   uint8_t mode = frame[5];
   // Temperature is given in degrees celcius * 2
   // only update for states that use the temperature
@@ -207,13 +225,23 @@ bool DaikinClimate::parse_state_frame_(const uint8_t frame[]) {
       this->fan_mode = climate::CLIMATE_FAN_QUIET;
       break;
   }
+
+  if ((frame[13] & 1) == 1)
+    this->set_preset_(CLIMATE_PRESET_BOOST);
+  else if ((frame[16] & 4) == 4)
+    this->set_preset_(CLIMATE_PRESET_ECO);
+  else
+    this->set_preset_(CLIMATE_PRESET_NONE);
+
   this->publish_state();
   return true;
 }
 
 bool DaikinClimate::on_receive(remote_base::RemoteReceiveData data) {
   uint8_t state_frame[DAIKIN_STATE_FRAME_SIZE] = {};
+  ESP_LOGW(TAG, "on_receive, length: %d", data.size());
   if (!data.expect_item(DAIKIN_HEADER_MARK, DAIKIN_HEADER_SPACE)) {
+    ESP_LOGW(TAG, "Frame parsing failed 1!");
     return false;
   }
   for (uint8_t pos = 0; pos < DAIKIN_STATE_FRAME_SIZE; pos++) {
@@ -222,33 +250,50 @@ bool DaikinClimate::on_receive(remote_base::RemoteReceiveData data) {
       if (data.expect_item(DAIKIN_BIT_MARK, DAIKIN_ONE_SPACE)) {
         byte |= 1 << bit;
       } else if (!data.expect_item(DAIKIN_BIT_MARK, DAIKIN_ZERO_SPACE)) {
+        ESP_LOGW(TAG, "Frame parsing failed 2 pos: %d", pos);
         return false;
       }
     }
     state_frame[pos] = byte;
     if (pos == 0) {
       // frame header
-      if (byte != 0x11)
+      if (byte != 0x11) {
+        ESP_LOGW(TAG, "Frame parsing failed 3!");
         return false;
+      }
     } else if (pos == 1) {
       // frame header
-      if (byte != 0xDA)
+      if (byte != 0xDA) {
+        ESP_LOGW(TAG, "Frame parsing failed 4!");
         return false;
+      }
     } else if (pos == 2) {
       // frame header
-      if (byte != 0x27)
+      if (byte != 0x27) {
+        ESP_LOGW(TAG, "Frame parsing failed 5!");
         return false;
+      }
     } else if (pos == 3) {  // NOLINT(bugprone-branch-clone)
       // frame header
-      if (byte != 0x00)
+      if (byte != 0x00) {
+        ESP_LOGW(TAG, "Frame parsing failed 6!");
         return false;
+      }
     } else if (pos == 4) {
       // frame type
-      if (byte != 0x00)
+      if (byte != 0x00) {
+        ESP_LOGW(TAG, "Not frame type = 0!");
         return false;
+      }
     }
   }
-  return this->parse_state_frame_(state_frame);
+  // return this->parse_state_frame_(state_frame);
+
+  if (!this->parse_state_frame_(state_frame)) {
+    ESP_LOGW(TAG, "Frame parsing failed 8!");
+    return false;
+  }
+  return true;
 }
 
 }  // namespace daikin
