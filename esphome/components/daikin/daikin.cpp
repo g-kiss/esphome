@@ -23,7 +23,6 @@ void DaikinClimate::transmit_state() {
   if (this->preset == CLIMATE_PRESET_BOOST)
     remote_state[16 + 13] = remote_state[16 + 13] | 1;
   else if (this->preset == CLIMATE_PRESET_ECO) {
-    ESP_LOGW(TAG, "set eco mode");
     remote_state[16 + 16] = remote_state[16 + 16] | 4;
   }
 
